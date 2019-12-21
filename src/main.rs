@@ -57,10 +57,11 @@ impl fmt::Display for Date {
             10 => "October",
             11 => "November",
             12 => "December",
-            _ => panic!("Internal error: Invalid month integer.")
+            _ => unreachable!()
         };
 
-        write!(f, "{} {} {}, {:02}:{:02}:{:02} UTC", self.day, month, self.year, self.hour, self.minute, self.second)
+        write!(f, "{} {} {}, {:02}:{:02}:{:02} UTC",
+               self.day, month, self.year, self.hour, self.minute, self.second)
     }
 }
 
@@ -80,36 +81,23 @@ fn parse_unix(t: i64) -> String {
     if t == 0 { return format!("{}", date); }
 
     // YEAR
-    {
-        loop {
-            let secs = seconds_of_year(date.year);
+    loop {
+        let secs = seconds_of_year(date.year);
 
-            if sign == -1 {
-                date.timestamp += sign * secs;
-                date.year += sign;
-            }
-
-            if (date.timestamp + sign * secs).abs() > t.abs() {
-                break;
-            }
-            
-            if sign == 1 {
-                date.timestamp += sign * secs;
-                date.year += sign;
-            }
+        if t - date.timestamp > 0 && t - (date.timestamp + secs) < 0 {
+            break;
         }
-    }
 
-    let month_days_list = if is_leap(date.year) { &LEAP_MONTH_DAYS_LIST } else { &MONTH_DAYS_LIST };
+        date.timestamp += sign * secs;
+        date.year += sign * 1;
+    }
 
     // MONTH
     {
-        for month_days in month_days_list {
-            let secs = *month_days * SECONDS_PER_DAY;
+        let month_days_list = if is_leap(date.year) { &LEAP_MONTH_DAYS_LIST } else { &MONTH_DAYS_LIST };
 
-            if date.timestamp + secs > t {
-                break
-            }
+        for secs in month_days_list.iter().map(|d| d * SECONDS_PER_DAY) {
+            if date.timestamp + secs > t { break; }
 
             date.timestamp += secs;
             date.month += 1;
@@ -117,28 +105,23 @@ fn parse_unix(t: i64) -> String {
     }
 
     // DAY
-    {
-        date.day += (t - date.timestamp) / SECONDS_PER_DAY;
-        date.timestamp += (date.day - 1) * SECONDS_PER_DAY;
-    }
+    let day = (t - date.timestamp) / SECONDS_PER_DAY;
+    date.timestamp += day * SECONDS_PER_DAY;
+    date.day += day;
 
     // HOUR
-    {
-        date.hour = (t - date.timestamp) / SECONDS_PER_HOUR;
-        date.timestamp += date.hour * SECONDS_PER_HOUR;
-    }
+    let hour = (t - date.timestamp) / SECONDS_PER_HOUR;
+    date.timestamp += hour * SECONDS_PER_HOUR;
+    date.hour += hour;
 
     // MINUTE
-    {
-        date.minute = (t - date.timestamp) / SECONDS_PER_MINUTE;
-        date.timestamp += date.minute * SECONDS_PER_MINUTE
-    }
+    let minute = (t - date.timestamp) / SECONDS_PER_MINUTE;
+    date.timestamp += minute * SECONDS_PER_MINUTE;
+    date.minute += minute;
 
     // SECOND
-    {
-        date.second = t - date.timestamp;
-        date.timestamp = t;
-    }
+    date.second = t - date.timestamp;
+    date.timestamp = t;
 
     format!("{}", date)
 }
