@@ -28,7 +28,7 @@ fn main() {
 
     let timestamp: i64 = args[1].parse().unwrap_or_else(|_| die!("Invalid unix timestamp."));
 
-    println!("{}", parse_unix(timestamp));
+    println!("{}", Date::from_unix(timestamp));
 }
 
 #[derive(Default, Debug)]
@@ -65,83 +65,83 @@ impl fmt::Display for Date {
     }
 }
 
-fn parse_unix(t: i64) -> String {
-    let sign = t.signum();
+impl Date {
+    pub fn from_unix(t: i64) -> Date {
+        let sign = t.signum();
 
-    let mut date = Date { 
-        year: 1970,
-        month: 1,
-        day: 1,
-        hour: 0,
-        minute: 0,
-        second: 0,
-        timestamp: 0
-    };
+        let mut date = Date { 
+            year: 1970,
+            month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+            second: 0,
+            timestamp: 0
+        };
 
-    if t == 0 { return format!("{}", date); }
+        if t == 0 { return date; }
 
-    // YEAR
-    loop {
-        let secs = seconds_of_year(date.year);
+        // YEAR
+        loop {
+            let secs = Date::seconds_of_year(date.year);
 
-        if t - date.timestamp > 0 && t - (date.timestamp + secs) < 0 {
-            break;
+            if t - date.timestamp > 0 && t - (date.timestamp + secs) < 0 {
+                break;
+            }
+
+            date.timestamp += sign * secs;
+            date.year += sign * 1;
         }
 
-        date.timestamp += sign * secs;
-        date.year += sign * 1;
-    }
-
-    // MONTH
-    {
-        let month_days_list = if is_leap(date.year) { &LEAP_MONTH_DAYS_LIST } else { &MONTH_DAYS_LIST };
-
+        // MONTH
+        let month_days_list = if Date::is_leap(date.year) { &LEAP_MONTH_DAYS_LIST } else { &MONTH_DAYS_LIST };
         for secs in month_days_list.iter().map(|d| d * SECONDS_PER_DAY) {
             if date.timestamp + secs > t { break; }
 
             date.timestamp += secs;
             date.month += 1;
         }
+
+        // DAY
+        let day = (t - date.timestamp) / SECONDS_PER_DAY;
+        date.timestamp += day * SECONDS_PER_DAY;
+        date.day += day;
+
+        // HOUR
+        let hour = (t - date.timestamp) / SECONDS_PER_HOUR;
+        date.timestamp += hour * SECONDS_PER_HOUR;
+        date.hour += hour;
+
+        // MINUTE
+        let minute = (t - date.timestamp) / SECONDS_PER_MINUTE;
+        date.timestamp += minute * SECONDS_PER_MINUTE;
+        date.minute += minute;
+
+        // SECOND
+        date.second = t - date.timestamp;
+        date.timestamp = t;
+
+        date
     }
 
-    // DAY
-    let day = (t - date.timestamp) / SECONDS_PER_DAY;
-    date.timestamp += day * SECONDS_PER_DAY;
-    date.day += day;
-
-    // HOUR
-    let hour = (t - date.timestamp) / SECONDS_PER_HOUR;
-    date.timestamp += hour * SECONDS_PER_HOUR;
-    date.hour += hour;
-
-    // MINUTE
-    let minute = (t - date.timestamp) / SECONDS_PER_MINUTE;
-    date.timestamp += minute * SECONDS_PER_MINUTE;
-    date.minute += minute;
-
-    // SECOND
-    date.second = t - date.timestamp;
-    date.timestamp = t;
-
-    format!("{}", date)
-}
-
-fn seconds_of_year(year: i64) -> i64 {
-    if is_leap(year) {
-        SECONDS_PER_LEAP_YEAR
-    } else {
-        SECONDS_PER_YEAR
+    fn seconds_of_year(year: i64) -> i64 {
+        if Date::is_leap(year) {
+            SECONDS_PER_LEAP_YEAR
+        } else {
+            SECONDS_PER_YEAR
+        }
     }
-}
 
-fn is_leap(year: i64) -> bool {
-    if year % 4 != 0 {
-        false
-    } else if year % 100 != 0 {
-        true
-    } else if year % 400 != 0 {
-        false
-    } else {
-        true
+    fn is_leap(year: i64) -> bool {
+        if year % 4 != 0 {
+            false
+        } else if year % 100 != 0 {
+            true
+        } else if year % 400 != 0 {
+            false
+        } else {
+            true
+        }
     }
+
 }
